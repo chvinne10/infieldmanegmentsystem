@@ -1,28 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Progress } from "@/components/ui/progress"
 import { 
   Mic, MicOff, Video, VideoOff, MessageSquare, PhoneOff, 
-  Brain, Send, Sparkles, Trophy, Clock, Users, Volume2, X
+  Brain, Send, Sparkles, X, Clock, Users
 } from "lucide-react"
 
-interface Participant {
-  id: number
-  name: string
-  isSpeaking: boolean
-  micOn: boolean
-  cameraOn: boolean
-  speakingScore: number
-  communicationScore: number
-  behaviorScore: number
-  speakingTime: number
-}
 
 interface ChatMessage {
   id: number
@@ -31,6 +19,8 @@ interface ChatMessage {
   isAI: boolean
   timestamp: Date
 }
+
+import type { ParticipantResult } from "./results-dashboard";
 
 const discussionTopics = [
   "Should Artificial Intelligence replace traditional jobs?",
@@ -41,104 +31,210 @@ const discussionTopics = [
   "Are electric vehicles the solution to pollution?"
 ]
 
-const aiTips = [
-  "Try to maintain eye contact while speaking",
-  "Use clear and concise language",
-  "Listen actively to other participants",
-  "Support your arguments with examples",
-  "Avoid interrupting others"
-]
 
 export function MeetingInterface() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const participantCount = parseInt(searchParams.get("participants") || "4")
   
-  const [isGeneratingTopic, setIsGeneratingTopic] = useState(true)
-  const [topic, setTopic] = useState("")
-  const [discussionStarted, setDiscussionStarted] = useState(false)
-  const [prepTime, setPrepTime] = useState(300) // 5 minutes
-  const [discussionTime, setDiscussionTime] = useState(0)
-  const [myMicOn, setMyMicOn] = useState(true)
-  const [myCameraOn, setMyCameraOn] = useState(true)
-  const [chatOpen, setChatOpen] = useState(false)
-  const [chatInput, setChatInput] = useState("")
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  
-  const [participants, setParticipants] = useState<Participant[]>([])
+  // discussion/topic state (for pre-meeting experience)
+  const [isGeneratingTopic, setIsGeneratingTopic] = useState(true);
+  const [topic, setTopic] = useState("");
+  const [discussionStarted, setDiscussionStarted] = useState(false);
+  const [prepTime, setPrepTime] = useState(300);
+  const [discussionTime, setDiscussionTime] = useState(0);
+  const [localSpeakingTime, setLocalSpeakingTime] = useState(0);
 
-  // Initialize participants
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const [remoteStreams, setRemoteStreams] = useState<{ id: string; stream: MediaStream }[]>([]);
+  const [myMicOn, setMyMicOn] = useState(true);
+  const [myCameraOn, setMyCameraOn] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  const pcMap = useRef<{ [key: string]: RTCPeerConnection }>({});
+  const socketRef = useRef<any>(null);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
+
+  // set up room id, signaling and media on mount
   useEffect(() => {
-    const names = ["You", "Alex Chen", "Sarah Miller", "David Kim", "Emma Wilson", "Michael Brown"]
-    const initialParticipants: Participant[] = Array.from({ length: participantCount }, (_, i) => ({
-      id: i,
-      name: names[i] || `Participant ${i + 1}`,
-      isSpeaking: false,
-      micOn: true,
-      cameraOn: true,
-      speakingScore: Math.floor(Math.random() * 30) + 70,
-      communicationScore: Math.floor(Math.random() * 30) + 70,
-      behaviorScore: Math.floor(Math.random() * 30) + 70,
-      speakingTime: 0
-    }))
-    setParticipants(initialParticipants)
-  }, [participantCount])
+    let id = searchParams.get("room");
+    if (!id) {
+      id = `room-${Math.random().toString(36).substr(2, 9)}`;
+      // optionally update URL
+      router.replace(`/meeting?room=${id}&participants=${participantCount}`);
+    }
+    setRoomId(id);
 
-  // Generate topic
+    const socket = require("socket.io-client")("http://localhost:3001");
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("join-room", id);
+    });
+
+    socket.on("user-joined", (peerId: string) => {
+      callNewUser(peerId);
+    });
+
+    socket.on("offer", async ({ from, sdp }: any) => {
+      // create PC and answer even if localStream not ready; tracks will be added later
+      const pc = createPeerConnection(from);
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", { to: from, sdp: pc.localDescription });
+    });
+
+    socket.on("answer", async ({ from, sdp }: any) => {
+      const pc = pcMap.current[from];
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      }
+    });
+
+    socket.on("ice-candidate", async ({ from, candidate }: any) => {
+      const pc = pcMap.current[from];
+      if (pc && candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
+    socket.on("user-left", (peerId: string) => {
+      removePeer(peerId);
+    });
+
+    // get user media
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+      setLocalStream(stream);
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+    }).catch(console.error);
+
+    return () => {
+      socket.disconnect();
+      Object.values(pcMap.current).forEach(pc => pc.close());
+      localStream?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  // topic generation via OpenAI API
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setTopic(discussionTopics[Math.floor(Math.random() * discussionTopics.length)])
-      setIsGeneratingTopic(false)
-    }, 2000)
-    return () => clearTimeout(timer)
-  }, [])
+    setIsGeneratingTopic(true);
+    // call backend service for topic generation; backend runs on port 3001
+    fetch('http://localhost:3001/api/topic', {
+      method: 'POST'
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.topic) {
+          setTopic(data.topic);
+        } else {
+          setTopic(discussionTopics[Math.floor(Math.random() * discussionTopics.length)]);
+        }
+      })
+      .catch(err => {
+        console.error('failed to load topic', err);
+        setTopic(discussionTopics[Math.floor(Math.random() * discussionTopics.length)]);
+      })
+      .finally(() => setIsGeneratingTopic(false));
+  }, []);
 
-  // Prep time countdown
+  // prep countdown
   useEffect(() => {
     if (!isGeneratingTopic && !discussionStarted && prepTime > 0) {
       const timer = setInterval(() => {
-        setPrepTime(prev => prev - 1)
-      }, 1000)
-      return () => clearInterval(timer)
+        setPrepTime(prev => prev - 1);
+      }, 1000);
+      return () => clearInterval(timer);
     }
-  }, [isGeneratingTopic, discussionStarted, prepTime])
+  }, [isGeneratingTopic, discussionStarted, prepTime]);
 
-  // Discussion timer
+  // local speaking timer (approximate by mic enabled during discussion)
+  useEffect(() => {
+    if (discussionStarted && myMicOn) {
+      const timer = setInterval(() => {
+        setLocalSpeakingTime(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [discussionStarted, myMicOn]);
+
+  // discussion timer
   useEffect(() => {
     if (discussionStarted) {
       const timer = setInterval(() => {
-        setDiscussionTime(prev => prev + 1)
-        
-        // Simulate random speaking
-        setParticipants(prev => prev.map(p => ({
-          ...p,
-          isSpeaking: Math.random() > 0.7,
-          speakingTime: p.isSpeaking ? p.speakingTime + 1 : p.speakingTime,
-          speakingScore: Math.min(100, p.speakingScore + (Math.random() > 0.8 ? 1 : 0)),
-          communicationScore: Math.min(100, p.communicationScore + (Math.random() > 0.9 ? 1 : 0)),
-          behaviorScore: Math.min(100, p.behaviorScore + (Math.random() > 0.85 ? 1 : 0))
-        })))
-      }, 1000)
-      return () => clearInterval(timer)
+        setDiscussionTime(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(timer);
     }
-  }, [discussionStarted])
+  }, [discussionStarted]);
 
-  // Add AI tips periodically
+  // update tracks when toggles change
   useEffect(() => {
-    if (discussionStarted) {
-      const timer = setInterval(() => {
-        const tip = aiTips[Math.floor(Math.random() * aiTips.length)]
-        setMessages(prev => [...prev, {
-          id: Date.now(),
-          sender: "AI Moderator",
-          message: tip,
-          isAI: true,
-          timestamp: new Date()
-        }])
-      }, 15000)
-      return () => clearInterval(timer)
+    if (localStream) {
+      localStream.getAudioTracks().forEach(t => t.enabled = myMicOn);
+      localStream.getVideoTracks().forEach(t => t.enabled = myCameraOn);
     }
-  }, [discussionStarted])
+  }, [myMicOn, myCameraOn, localStream]);
+
+  useEffect(() => {
+    remoteStreams.forEach(r => {
+      const vid = remoteVideoRefs.current[r.id];
+      if (vid && vid.srcObject !== r.stream) {
+        vid.srcObject = r.stream;
+      }
+    });
+  }, [remoteStreams]);
+
+  const createPeerConnection = (peerId: string) => {
+    const pc = new RTCPeerConnection();
+    pcMap.current[peerId] = pc;
+
+    const stream = localStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    }
+
+    pc.onicecandidate = event => {
+      if (event.candidate) {
+        socketRef.current.emit("ice-candidate", { to: peerId, candidate: event.candidate });
+      }
+    };
+
+    pc.ontrack = event => {
+      const [stream] = event.streams;
+      setRemoteStreams(prev => {
+        if (prev.find(r => r.id === peerId)) return prev;
+        return [...prev, { id: peerId, stream }];
+      });
+    };
+
+    return pc;
+  };
+
+  const callNewUser = async (peerId: string) => {
+    const pc = createPeerConnection(peerId);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socketRef.current.emit("offer", { to: peerId, sdp: pc.localDescription });
+  };
+
+  const removePeer = (peerId: string) => {
+    const pc = pcMap.current[peerId];
+    if (pc) {
+      pc.close();
+      delete pcMap.current[peerId];
+    }
+    setRemoteStreams(prev => prev.filter(r => r.id !== peerId));
+    delete remoteVideoRefs.current[peerId];
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -160,24 +256,50 @@ export function MeetingInterface() {
   }
 
   const handleEndMeeting = () => {
-    const scores = participants.map(p => ({
-      name: p.name,
-      speakingScore: p.speakingScore,
-      communicationScore: p.communicationScore,
-      behaviorScore: p.behaviorScore,
-      speakingTime: p.speakingTime
-    }))
-    localStorage.setItem("discussionResults", JSON.stringify(scores))
-    router.push("/results")
+    // generate results for each participant (local user + simulated others)
+    const results: ParticipantResult[] = [];
+
+    const calcScore = (base: number, variance = 10) => {
+      let val = base + (Math.random() * variance * 2 - variance);
+      if (val < 0) val = 0;
+      if (val > 100) val = 100;
+      return Math.round(val);
+    };
+
+    const userBase = discussionTime > 0 ? (localSpeakingTime / discussionTime) * 100 : 0;
+    results.push({
+      name: "You",
+      speakingScore: calcScore(userBase, 15),
+      communicationScore: calcScore(userBase, 15),
+      behaviorScore: calcScore(80, 20),
+      speakingTime: localSpeakingTime
+    });
+
+    const otherNames = [
+      "Alex Chen",
+      "Sarah Miller",
+      "David Kim",
+      "Emma Lee",
+      "Maya Patel",
+      "Liam Nguyen",
+      "Olivia Brown"
+    ];
+    const othersCount = participantCount - 1;
+    for (let i = 0; i < othersCount; i++) {
+      const randomTime = Math.floor(Math.random() * discussionTime);
+      results.push({
+        name: otherNames[i] || `Participant ${i + 2}`,
+        speakingScore: Math.round(60 + Math.random() * 40),
+        communicationScore: Math.round(60 + Math.random() * 40),
+        behaviorScore: Math.round(60 + Math.random() * 40),
+        speakingTime: randomTime
+      });
+    }
+
+    localStorage.setItem("discussionResults", JSON.stringify(results));
+    router.push("/results");
   }
 
-  const getRankedParticipants = () => {
-    return [...participants].sort((a, b) => {
-      const scoreA = (a.speakingScore + a.communicationScore + a.behaviorScore) / 3
-      const scoreB = (b.speakingScore + b.communicationScore + b.behaviorScore) / 3
-      return scoreB - scoreA
-    })
-  }
 
   if (isGeneratingTopic) {
     return (
@@ -230,6 +352,12 @@ export function MeetingInterface() {
             <Users className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium">{participantCount} participants</span>
           </div>
+          {discussionStarted && (
+            <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
+              <Mic className="w-4 h-4 text-muted-foreground" />
+              <span className="font-mono text-sm font-medium">{formatTime(localSpeakingTime)}</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -262,157 +390,35 @@ export function MeetingInterface() {
               </Card>
             </div>
           ) : (
-            // Video grid
+            // Real video grid
             <div className={`grid gap-4 h-full ${
-              participantCount === 1 ? "grid-cols-1" :
-              participantCount === 2 ? "grid-cols-2" :
-              participantCount <= 4 ? "grid-cols-2 grid-rows-2" :
+              remoteStreams.length + (localStream ? 1 : 0) === 1 ? "grid-cols-1" :
+              remoteStreams.length + (localStream ? 1 : 0) === 2 ? "grid-cols-2" :
+              remoteStreams.length + (localStream ? 1 : 0) <= 4 ? "grid-cols-2 grid-rows-2" :
               "grid-cols-3 grid-rows-2"
             }`}>
-              {participants.map((participant, index) => (
-                <Card 
-                  key={participant.id}
-                  className={`relative overflow-hidden bg-card border-2 transition-all ${
-                    participant.isSpeaking ? "border-primary shadow-lg shadow-primary/20" : "border-border/50"
-                  }`}
-                >
-                  {/* Video placeholder */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center">
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold ${
-                      index === 0 ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"
-                    }`}>
-                      {participant.name.charAt(0)}
-                    </div>
-                  </div>
-
-                  {/* Speaking indicator */}
-                  {participant.isSpeaking && (
-                    <div className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1.5 bg-primary rounded-full">
-                      <Volume2 className="w-3 h-3 text-primary-foreground animate-pulse" />
-                      <span className="text-xs font-medium text-primary-foreground">Speaking</span>
-                    </div>
-                  )}
-
-                  {/* Participant info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-white">{participant.name}</span>
-                      <div className="flex items-center gap-2">
-                        {participant.micOn ? (
-                          <Mic className="w-4 h-4 text-white" />
-                        ) : (
-                          <MicOff className="w-4 h-4 text-destructive" />
-                        )}
-                        {participant.cameraOn ? (
-                          <Video className="w-4 h-4 text-white" />
-                        ) : (
-                          <VideoOff className="w-4 h-4 text-destructive" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
+              {localStream && (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full bg-black rounded-lg"
+                />
+              )}
+              {remoteStreams.map(r => (
+                <video
+                  key={r.id}
+                  ref={el => { if (el) remoteVideoRefs.current[r.id] = el }}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full bg-black rounded-lg"
+                />
               ))}
-
-              {/* AI Moderator Card */}
-              <Card className="relative overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20 border-2 border-primary/30">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center">
-                    <Brain className="w-10 h-10 text-primary-foreground" />
-                  </div>
-                </div>
-                <div className="absolute top-3 left-3 px-3 py-1.5 bg-primary/80 rounded-full">
-                  <span className="text-xs font-medium text-primary-foreground">AI Moderator</span>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent">
-                  <span className="text-sm font-medium text-white">AI Moderator</span>
-                </div>
-              </Card>
             </div>
           )}
         </div>
 
-        {/* Right Sidebar - AI Analysis */}
-        {discussionStarted && (
-          <aside className="hidden lg:block w-80 border-l border-border bg-card/50 backdrop-blur p-4 space-y-4 overflow-y-auto">
-            {/* AI Analysis Panel */}
-            <Card className="bg-card border-border/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-primary" />
-                  AI Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {participants[0] && (
-                  <>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Speaking Score</span>
-                        <span className="font-medium">{participants[0].speakingScore}%</span>
-                      </div>
-                      <Progress value={participants[0].speakingScore} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Communication</span>
-                        <span className="font-medium">{participants[0].communicationScore}%</span>
-                      </div>
-                      <Progress value={participants[0].communicationScore} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Behavior</span>
-                        <span className="font-medium">{participants[0].behaviorScore}%</span>
-                      </div>
-                      <Progress value={participants[0].behaviorScore} className="h-2" />
-                    </div>
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Speaking Time</span>
-                        <span className="font-mono font-medium">{formatTime(participants[0].speakingTime)}</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Ranking Board */}
-            <Card className="bg-card border-border/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-warning" />
-                  Live Ranking
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {getRankedParticipants().slice(0, 3).map((participant, index) => (
-                  <div key={participant.id} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      index === 0 ? "bg-warning text-warning-foreground" :
-                      index === 1 ? "bg-muted-foreground/30 text-foreground" :
-                      "bg-orange-900/30 text-orange-400"
-                    }`}>
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{participant.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {index === 0 ? "Best Communicator" :
-                         index === 1 ? "Second Place" :
-                         "Third Place"}
-                      </p>
-                    </div>
-                    <span className="text-sm font-medium text-primary">
-                      {Math.round((participant.speakingScore + participant.communicationScore + participant.behaviorScore) / 3)}%
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </aside>
-        )}
       </div>
 
       {/* Bottom Controls */}

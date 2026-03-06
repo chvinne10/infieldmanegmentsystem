@@ -10,7 +10,7 @@ import {
   ArrowRight, RotateCcw, Home, Star, Target, Zap
 } from "lucide-react"
 
-interface ParticipantResult {
+export interface ParticipantResult {
   name: string
   speakingScore: number
   communicationScore: number
