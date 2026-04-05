@@ -1,10 +1,57 @@
-# v0 runtime files
-__v0_runtime_loader.js
-__v0_devtools.tsx
-__v0_jsx-dev-runtime.ts
+**.pyc
+**/__pycache__/
+**/.pytest_cache/
+**/.coverage
+**/htmlcov/
+*.egg-info/
+dist/
+build/
+.Python
+venv/
+env/
+ENV/
+.venv
 
-# Common ignores
-node_modules/
-.next/
-.env*.local
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media/
+/static/
+/staticfiles/
+
+# Frontend
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env.example.local
+.env.production.local
+.env.development.local
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
