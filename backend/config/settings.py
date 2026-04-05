@@ -77,7 +77,7 @@ ASGI_APPLICATION = 'config.asgi.application'
 # Database
 DATABASES = {
     'default': dj_database_url.config(
-        default=config('DATABASE_URL', default=f"postgresql://{config('DATABASE_USER', default='postgres')}:{config('DATABASE_PASSWORD', default='password')}@{config('DATABASE_HOST', default='localhost')}:{config('DATABASE_PORT', default='5432')}/{config('DATABASE_NAME', default='smart_field_manager')}")
+        default=config('DATABASE_URL', default='sqlite:///db.sqlite3')
     )
 }
 
