@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     tesseract-ocr \
     libpq-dev \
+    build-essential \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
