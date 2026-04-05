@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+import dj_database_url
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -75,14 +76,9 @@ ASGI_APPLICATION = 'config.asgi.application'
 
 # Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DATABASE_NAME', default='smart_field_manager'),
-        'USER': config('DATABASE_USER', default='postgres'),
-        'PASSWORD': config('DATABASE_PASSWORD', default='password'),
-        'HOST': config('DATABASE_HOST', default='localhost'),
-        'PORT': config('DATABASE_PORT', default='5432'),
-    }
+    'default': dj_database_url.config(
+        default=config('DATABASE_URL', default=f"postgresql://{config('DATABASE_USER', default='postgres')}:{config('DATABASE_PASSWORD', default='password')}@{config('DATABASE_HOST', default='localhost')}:{config('DATABASE_PORT', default='5432')}/{config('DATABASE_NAME', default='smart_field_manager')}")
+    )
 }
 
 # Password validation
