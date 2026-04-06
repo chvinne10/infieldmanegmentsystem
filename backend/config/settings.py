@@ -8,24 +8,22 @@ from datetime import timedelta
 from decouple import config
 import dj_database_url
 
-# Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Security
+# SECURITY
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-# ALLOWED_HOSTS - include localhost and environment-specific hosts
+# ALLOWED HOSTS
 _allowed = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
-# Add Render domain automatically on Render environment
 if os.getenv('RENDER_EXTERNAL_HOSTNAME'):
     _allowed.append(os.getenv('RENDER_EXTERNAL_HOSTNAME'))
+
 ALLOWED_HOSTS = [h.strip() for h in _allowed if h.strip()]
 
-# Application definition
+# APPLICATIONS
 INSTALLED_APPS = [
-    # Django defaults
-    'daphne',  # Django Channels - must be first
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,9 +46,10 @@ INSTALLED_APPS = [
     'apps.uploads.apps.UploadsConfig',
 ]
 
+# MIDDLEWARE
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # MUST BE FIRST
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -61,6 +60,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config.urls'
 
+# TEMPLATES
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -80,48 +80,39 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Database
+# DATABASE
 DATABASES = {
     'default': dj_database_url.config(
         default=config('DATABASE_URL', default='sqlite:///db.sqlite3')
     )
 }
 
-# Password validation
+# PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internationalization
+# INTERNATIONALIZATION
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# STATIC FILES
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-# Media files
+# MEDIA FILES
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# REST Framework Configuration
+# REST FRAMEWORK
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -138,7 +129,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
 }
 
-# JWT Configuration
+# JWT
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=config('JWT_EXPIRATION_HOURS', default=24, cast=int)),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=config('JWT_REFRESH_EXPIRATION_DAYS', default=7, cast=int)),
@@ -146,9 +137,25 @@ SIMPLE_JWT = {
     'SIGNING_KEY': config('JWT_SECRET_KEY', default=SECRET_KEY),
 }
 
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173').split(',')
+# ✅ CORS FIX (IMPORTANT)
+CORS_ALLOWED_ORIGINS = [
+    "https://infieldmanegmentsystem.vercel.app",
+]
+
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -158,34 +165,40 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-# Channels Configuration
+# 🔥 TEMP FIX (can remove later)
+CORS_ALLOW_ALL_ORIGINS = True
+
+# ✅ CSRF FIX
+CSRF_TRUSTED_ORIGINS = [
+    "https://infieldmanegmentsystem.vercel.app",
+]
+
+# CHANNELS
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer'
     }
 }
 
-# Celery Configuration
+# CELERY
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
-# Firebase Configuration (Optional)
+# OPTIONAL CONFIGS
 FIREBASE_API_KEY = config('FIREBASE_API_KEY', default=None)
 FIREBASE_AUTH_DOMAIN = config('FIREBASE_AUTH_DOMAIN', default=None)
-
-# Google Maps Configuration (Optional)
 GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default=None)
 
-# Tesseract Configuration
+# TESSERACT
 TESSERACT_CMD = config('TESSERACT_CMD', default='/usr/bin/tesseract')
 
-# Custom User Model
+# CUSTOM USER
 AUTH_USER_MODEL = 'users.CustomUser'
 
-# Logging Configuration
+# LOGGING
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -214,5 +227,4 @@ LOGGING = {
     },
 }
 
-# Create logs directory if it doesn't exist
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
