@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getCurrentUser, loginUser, logoutUser } from '../services/userService';
+import { getCurrentUser, loginUser, logoutUser, registerUser } from '../services/userService';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -55,6 +55,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    try {
+      setLoading(true);
+      const response = await registerUser(userData);
+      setUser(response.user);
+      setIsAuthenticated(true);
+      toast.success('Registration successful!');
+      return response;
+    } catch (error) {
+      toast.error(error?.detail || error?.message || 'Registration failed');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     logoutUser();
     setUser(null);
@@ -67,6 +83,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated,
     login,
+    register,
     logout,
     setUser,
   };

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
-import { validateEmail, validatePassword } from '../utils/validation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -111,6 +110,13 @@ export default function LoginPage() {
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+
+          <div className="mt-6 text-center text-sm text-gray-600">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+              Create one
+            </Link>
+          </div>
 
           {/* Demo Credentials */}
           <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">

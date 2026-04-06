@@ -8,6 +8,14 @@ import apiClient from './api';
 export const registerUser = async (userData) => {
   try {
     const response = await apiClient.post('/users/register/', userData);
+    const { access, refresh, user } = response.data;
+    if (access && refresh) {
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+    }
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;

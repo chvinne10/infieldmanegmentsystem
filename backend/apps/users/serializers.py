@@ -30,7 +30,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'username', 'email', 'first_name', 'last_name',
-            'password', 'password2', 'phone', 'role'
+            'password', 'password2', 'phone'
         ]
     
     def validate(self, data):
@@ -40,7 +40,8 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        """Create user with hashed password."""
+        """Create an employee user with hashed password."""
+        validated_data['role'] = 'employee'
         user = User.objects.create_user(**validated_data)
         return user
 
@@ -56,6 +57,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['email'] = user.email
         token['role'] = user.role
         return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['user'] = UserSerializer(self.user).data
+        return data
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
