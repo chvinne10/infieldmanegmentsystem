@@ -120,13 +120,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    'DEFAULT_FILTER_BACKENDS': (
-        'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
-        'rest_framework.filters.OrderingFilter',
-    ),
-    'PAGE_SIZE': 20,
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
 }
 
 # JWT
@@ -137,25 +130,31 @@ SIMPLE_JWT = {
     'SIGNING_KEY': config('JWT_SECRET_KEY', default=SECRET_KEY),
 }
 
-# ✅ CORS FIX (IMPORTANT)
-CORS_ALLOWED_ORIGINS = [
-    "https://infieldmanegmentsystem.vercel.app",
+# =========================
+# ✅ FINAL CORS FIX
+# =========================
+
+# Allow ALL Vercel deployments (IMPORTANT)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
 ]
 
+# Allow credentials (JWT/Auth)
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow all headers
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
     'authorization',
     'content-type',
-    'dnt',
     'origin',
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
 ]
 
+# Allow all required methods
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -165,13 +164,19 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-# 🔥 TEMP FIX (can remove later)
+# TEMP: allow all origins (remove later)
 CORS_ALLOW_ALL_ORIGINS = True
 
+
+# =========================
 # ✅ CSRF FIX
+# =========================
+
 CSRF_TRUSTED_ORIGINS = [
-    "https://infieldmanegmentsystem.vercel.app",
+    "https://*.vercel.app",
 ]
+
+# =========================
 
 # CHANNELS
 CHANNEL_LAYERS = {
@@ -183,14 +188,6 @@ CHANNEL_LAYERS = {
 # CELERY
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-
-# OPTIONAL CONFIGS
-FIREBASE_API_KEY = config('FIREBASE_API_KEY', default=None)
-FIREBASE_AUTH_DOMAIN = config('FIREBASE_AUTH_DOMAIN', default=None)
-GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default=None)
 
 # TESSERACT
 TESSERACT_CMD = config('TESSERACT_CMD', default='/usr/bin/tesseract')
@@ -202,29 +199,13 @@ AUTH_USER_MODEL = 'users.CustomUser'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-    },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/django.log'),
-            'formatter': 'verbose',
-        },
         'console': {
-            'level': 'DEBUG',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
         },
     },
     'root': {
-        'handlers': ['console', 'file'],
+        'handlers': ['console'],
         'level': 'INFO',
     },
 }
-
-os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
