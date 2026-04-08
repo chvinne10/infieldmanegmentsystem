@@ -1,25 +1,25 @@
-import axios from 'axios';
+import axios from "axios";
 
-// API instance configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// ✅ FORCE correct backend URL
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
-// Add token to headers
+// ✅ Attach token
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem("access");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Handle token refresh
+// ✅ Handle refresh token
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -27,21 +27,24 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        const response = await axios.post(`${API_BASE_URL}/users/token/refresh/`, {
-          refresh: refreshToken,
-        });
 
-        localStorage.setItem('access_token', response.data.access);
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
+      try {
+        const refresh = localStorage.getItem("refresh");
+
+        const res = await axios.post(
+          `${API_BASE_URL}/api/token/refresh/`,
+          { refresh }
+        );
+
+        localStorage.setItem("access", res.data.access);
+
+        originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
 
         return apiClient(originalRequest);
+
       } catch (err) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        localStorage.clear();
+        window.location.href = "/login";
         return Promise.reject(err);
       }
     }
