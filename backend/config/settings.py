@@ -1,21 +1,27 @@
 # =========================
-# ✅ FINAL CORS FIX (CLEAN)
+# STATIC FILES (🔥 IMPORTANT FIX)
 # =========================
 
-# ✅ Allow your frontend (VERY IMPORTANT)
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# ⚠️ REMOVE THIS LINE IF EXISTS (causes collectstatic error)
+# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# =========================
+# CORS CONFIG (FINAL)
+# =========================
+
 CORS_ALLOWED_ORIGINS = [
     "https://infieldmanegmentsystem.vercel.app",
 ]
 
-# ✅ Allow all Vercel preview deployments
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.vercel\.app$",
 ]
 
-# ✅ Allow credentials (JWT)
 CORS_ALLOW_CREDENTIALS = True
 
-# ✅ Allow headers
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -27,7 +33,6 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# ✅ Allow methods
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -37,14 +42,15 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-# ❌ REMOVE THIS (IMPORTANT)
+# ❌ MUST NOT EXIST
 # CORS_ALLOW_ALL_ORIGINS = True
 
 
 # =========================
-# ✅ CSRF FIX (IMPORTANT)
+# CSRF
 # =========================
 
 CSRF_TRUSTED_ORIGINS = [
     "https://infieldmanegmentsystem.vercel.app",
+    "https://*.vercel.app",
 ]
