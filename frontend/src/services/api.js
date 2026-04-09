@@ -9,7 +9,7 @@ const apiClient = axios.create({
   },
 });
 
-// Attach token
+// ✅ Attach token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("access");
   if (token) {
@@ -18,7 +18,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Refresh token
+// ✅ Handle refresh token
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
