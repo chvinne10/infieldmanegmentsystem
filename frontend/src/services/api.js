@@ -1,6 +1,6 @@
 import axios from "axios";
 
-// 100% HARDCODED URL - This forces the app to talk to Render, bypassing Vercel bugs
+// 🚀 Guaranteed Base URL matching your Render backend
 const API_BASE_URL = "https://gd-ai-h8zg.onrender.com";
 
 const apiClient = axios.create({
@@ -10,7 +10,7 @@ const apiClient = axios.create({
   },
 });
 
-// Attach access token to requests
+// Attach the access token to every request automatically
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("access");
   if (token) {
@@ -19,7 +19,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle token refreshes safely
+// Automatically handle expired tokens
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {

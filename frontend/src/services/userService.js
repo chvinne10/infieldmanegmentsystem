@@ -1,6 +1,6 @@
 import apiClient from "./api";
 
-// ✅ Explicitly including /api/ in the paths
+// ✅ REGISTRATION (Matches your link perfectly!)
 export const registerUser = async (data) => {
   const res = await apiClient.post("/api/users/register/", data);
 
@@ -10,6 +10,7 @@ export const registerUser = async (data) => {
   return res.data;
 };
 
+// ✅ LOGIN
 export const loginUser = async (username, password) => {
   const res = await apiClient.post("/api/token/", {
     username,
@@ -22,11 +23,25 @@ export const loginUser = async (username, password) => {
   return res.data;
 };
 
+// ✅ GET CURRENT USER PROFILE
 export const getCurrentUser = async () => {
   const res = await apiClient.get("/api/users/me/");
   return res.data;
 };
 
+// ✅ GET ALL EMPLOYEES
+export const getAllEmployees = async () => {
+  const res = await apiClient.get("/api/users/employees/");
+  return res.data;
+};
+
+// ✅ GET ALL MANAGERS
+export const getAllManagers = async () => {
+  const res = await apiClient.get("/api/users/managers/");
+  return res.data;
+};
+
+// ✅ LOGOUT
 export const logoutUser = () => {
   localStorage.clear();
 };
