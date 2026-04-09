@@ -31,10 +31,10 @@ apiClient.interceptors.response.use(
       try {
         const refresh = localStorage.getItem("refresh");
 
-        const res = await axios.post(
-          `${API_BASE_URL}/api/token/refresh/`,
-          { refresh }
-        );
+       const res = await axios.post(
+       ${API_BASE_URL}/token/refresh/`,
+       { refresh }
+       );
 
         localStorage.setItem("access", res.data.access);
 
