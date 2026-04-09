@@ -1,7 +1,6 @@
 import axios from "axios";
 
-// ✅ FORCE correct backend URL
-const API_BASE_URL = "https://gd-ai-h8zg.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -10,7 +9,6 @@ const apiClient = axios.create({
   },
 });
 
-// ✅ Attach token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("access");
   if (token) {
@@ -19,7 +17,6 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// ✅ Handle refresh token
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -31,17 +28,16 @@ apiClient.interceptors.response.use(
       try {
         const refresh = localStorage.getItem("refresh");
 
-       const res = await axios.post(
-       ${API_BASE_URL}/token/refresh/`,
-       { refresh }
-       );
+        const res = await axios.post(
+          `${API_BASE_URL}/api/token/refresh/`,
+          { refresh }
+        );
 
         localStorage.setItem("access", res.data.access);
 
         originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
 
         return apiClient(originalRequest);
-
       } catch (err) {
         localStorage.clear();
         window.location.href = "/login";
