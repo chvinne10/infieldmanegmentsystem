@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import apiClient from '../services/api'; // Direct API import
+import apiClient from '../services/api'; 
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -21,14 +21,12 @@ export default function RegisterPage() {
       ...prev,
       [e.target.name]: e.target.value,
     }));
-    // Clear the error for the field being typed in
     setErrors((prev) => ({ ...prev, [e.target.name]: '', form: '' }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic frontend validation
     if (formData.password !== formData.password2) {
       setErrors({ password2: 'Passwords do not match' });
       return;
@@ -37,21 +35,42 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      // The exact API call to Render
-      await apiClient.post("/api/users/register/", {
-        ...formData,
+      // 1. Explicitly build the payload so we KNOW it's not empty
+      const payload = {
+        username: formData.username,
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+        password: formData.password,
+        password2: formData.password2,
         role: 'employee'
-      });
+      };
 
-      // If successful, alert and send to login!
+      // 2. Log it to the console so you can see it working!
+      console.log("Sending payload to Django:", payload);
+
+      // 3. Send it to Render
+      await apiClient.post("/api/users/register/", payload);
+
       alert("Registration Successful! Please log in.");
       navigate('/login');
 
     } catch (err) {
-      console.error("Registration failed:", err);
-      setErrors({
-        form: err?.response?.data?.detail || err?.response?.data?.error || 'Registration failed. Check your network or try again.',
-      });
+      console.error("Registration failed:", err.response?.data || err);
+      
+      // Better error handling to show exactly which field Django rejected
+      const errorData = err.response?.data;
+      let errorMessage = "Registration failed.";
+      
+      if (errorData) {
+        if (errorData.username) errorMessage = `Username: ${errorData.username[0]}`;
+        else if (errorData.email) errorMessage = `Email: ${errorData.email[0]}`;
+        else if (errorData.password) errorMessage = `Password: ${errorData.password[0]}`;
+        else if (errorData.detail) errorMessage = errorData.detail;
+      }
+
+      setErrors({ form: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -62,7 +81,6 @@ export default function RegisterPage() {
       <div className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-8">
         <h1 className="text-3xl font-bold text-center mb-6">Create Account</h1>
 
-        {/* Global Form Error Message */}
         {errors.form && (
           <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-center font-semibold">
             {errors.form}
@@ -72,32 +90,32 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 md:grid-cols-2">
           
           <div>
-            <input name="username" placeholder="Username" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            <input name="username" value={formData.username} placeholder="Username" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
             {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username}</p>}
           </div>
 
           <div>
-            <input name="email" type="email" placeholder="Email" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            <input name="email" value={formData.email} type="email" placeholder="Email" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
           </div>
 
           <div>
-            <input name="first_name" placeholder="First Name" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            <input name="first_name" value={formData.first_name} placeholder="First Name" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
           </div>
 
           <div>
-            <input name="last_name" placeholder="Last Name" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            <input name="last_name" value={formData.last_name} placeholder="Last Name" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
           </div>
 
           <div className="md:col-span-2">
-            <input name="phone" placeholder="Phone Number (Optional)" onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            <input name="phone" value={formData.phone} placeholder="Phone Number (Optional)" onChange={handleChange} className="w-full p-3 border rounded-lg" />
           </div>
 
           <div>
-            <input type="password" name="password" placeholder="Password" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            <input type="password" value={formData.password} name="password" placeholder="Password" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
           </div>
 
           <div>
-            <input type="password" name="password2" placeholder="Confirm Password" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
+            <input type="password" value={formData.password2} name="password2" placeholder="Confirm Password" required onChange={handleChange} className="w-full p-3 border rounded-lg" />
             {errors.password2 && <p className="text-red-500 text-sm mt-1">{errors.password2}</p>}
           </div>
 
