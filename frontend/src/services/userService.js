@@ -2,7 +2,7 @@ import apiClient from "./api";
 
 // ✅ REGISTER
 export const registerUser = async (data) => {
-  const res = await apiClient.post("/users/register/", data);
+  const res = await apiClient.post("/api/users/register/", data);
 
   localStorage.setItem("access", res.data.access);
   localStorage.setItem("refresh", res.data.refresh);
