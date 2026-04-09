@@ -2,17 +2,19 @@
 Django settings for Smart Field Work Manager project.
 """
 
+# 1. ALL IMPORTS MUST BE AT THE VERY TOP
 import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
 import dj_database_url
 
-# ==============================================================================
-# 1. CORE DEFINITIONS (MUST BE AT THE VERY TOP)
-# ==============================================================================
+# 2. BASE_DIR MUST BE DEFINED BEFORE ANYTHING USES IT
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ==============================================================================
+# CORE SETTINGS
+# ==============================================================================
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 DEBUG = config('DEBUG', default=False, cast=bool)
 
@@ -22,19 +24,10 @@ if os.getenv('RENDER_EXTERNAL_HOSTNAME'):
 ALLOWED_HOSTS = [h.strip() for h in _allowed if h.strip()]
 
 # ==============================================================================
-# 2. STATIC & MEDIA FILES (Now safe to use BASE_DIR)
-# ==============================================================================
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# ==============================================================================
-# 3. APPS & MIDDLEWARE
+# APPS & MIDDLEWARE
 # ==============================================================================
 INSTALLED_APPS = [
-    'daphne',
+    'daphne',  # Must be before django.contrib.staticfiles
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -90,7 +83,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
 # ==============================================================================
-# 4. DATABASE & AUTHENTICATION
+# DATABASE & AUTHENTICATION
 # ==============================================================================
 DATABASES = {
     'default': dj_database_url.config(
@@ -108,7 +101,7 @@ AUTH_PASSWORD_VALIDATORS = [
 AUTH_USER_MODEL = 'users.CustomUser'
 
 # ==============================================================================
-# 5. REST FRAMEWORK & JWT
+# REST FRAMEWORK & JWT
 # ==============================================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -127,7 +120,16 @@ SIMPLE_JWT = {
 }
 
 # ==============================================================================
-# 6. CORS & CSRF CONFIGURATION
+# STATIC & MEDIA FILES (Safe to use os and BASE_DIR here)
+# ==============================================================================
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# ==============================================================================
+# CORS & CSRF CONFIGURATION
 # ==============================================================================
 CORS_ALLOWED_ORIGINS = [
     "https://infieldmanegmentsystem.vercel.app",
@@ -160,7 +162,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # ==============================================================================
-# 7. EXTRA CONFIGURATIONS (Celery, Channels, etc.)
+# EXTRA CONFIGURATIONS (Celery, Channels, etc.)
 # ==============================================================================
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
