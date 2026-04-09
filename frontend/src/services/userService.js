@@ -2,9 +2,8 @@ import apiClient from "./api";
 
 // ✅ REGISTER
 export const registerUser = async (data) => {
-  const res = await apiClient.post("/api/users/register/", data);
+  const res = await apiClient.post("/users/register/", data);
 
-  // store tokens
   localStorage.setItem("access", res.data.access);
   localStorage.setItem("refresh", res.data.refresh);
 
@@ -13,7 +12,7 @@ export const registerUser = async (data) => {
 
 // ✅ LOGIN
 export const loginUser = async (username, password) => {
-  const res = await apiClient.post("/api/token/", {
+  const res = await apiClient.post("/token/", {
     username,
     password,
   });
@@ -26,7 +25,7 @@ export const loginUser = async (username, password) => {
 
 // ✅ CURRENT USER
 export const getCurrentUser = async () => {
-  const res = await apiClient.get("/api/users/me/");
+  const res = await apiClient.get("/users/me/");
   return res.data;
 };
 
