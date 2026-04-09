@@ -29,6 +29,24 @@ export const getCurrentUser = async () => {
   return res.data;
 };
 
+// ✅ GET ALL EMPLOYEES (🔥 FIXED ERROR)
+export const getAllEmployees = async () => {
+  const res = await apiClient.get("/users/employees/");
+  return res.data;
+};
+
+// ✅ GET ALL MANAGERS
+export const getAllManagers = async () => {
+  const res = await apiClient.get("/users/managers/");
+  return res.data;
+};
+
+// ✅ GET ALL USERS (optional but useful)
+export const getAllUsers = async () => {
+  const res = await apiClient.get("/users/");
+  return res.data;
+};
+
 // ✅ LOGOUT
 export const logoutUser = () => {
   localStorage.clear();
