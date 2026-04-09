@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+// 100% HARDCODED URL - This forces the app to talk to Render, bypassing Vercel bugs
+const API_BASE_URL = "https://gd-ai-h8zg.onrender.com";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -9,7 +10,7 @@ const apiClient = axios.create({
   },
 });
 
-// ✅ Attach token
+// Attach access token to requests
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("access");
   if (token) {
@@ -18,9 +19,9 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// ✅ Handle refresh token
+// Handle token refreshes safely
 apiClient.interceptors.response.use(
-  (res) => res,
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
@@ -29,20 +30,25 @@ apiClient.interceptors.response.use(
 
       try {
         const refresh = localStorage.getItem("refresh");
+        if (!refresh) {
+          localStorage.clear();
+          window.location.href = "/login";
+          return Promise.reject(error);
+        }
 
         const res = await axios.post(
-          `${API_BASE_URL}/token/refresh/`,
+          `${API_BASE_URL}/api/token/refresh/`,
           { refresh }
         );
 
         localStorage.setItem("access", res.data.access);
-
         originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
 
         return apiClient(originalRequest);
       } catch (err) {
         localStorage.clear();
         window.location.href = "/login";
+        return Promise.reject(err);
       }
     }
 
