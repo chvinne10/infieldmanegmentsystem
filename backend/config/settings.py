@@ -1,20 +1,11 @@
-"""
-Django settings for Smart Field Work Manager project.
-"""
-
-# 1. ALL IMPORTS MUST BE AT THE VERY TOP
 import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
 import dj_database_url
 
-# 2. BASE_DIR MUST BE DEFINED BEFORE ANYTHING USES IT
+# 1. CORE DEFINITIONS
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# ==============================================================================
-# CORE SETTINGS
-# ==============================================================================
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 DEBUG = config('DEBUG', default=False, cast=bool)
 
@@ -23,35 +14,24 @@ if os.getenv('RENDER_EXTERNAL_HOSTNAME'):
     _allowed.append(os.getenv('RENDER_EXTERNAL_HOSTNAME'))
 ALLOWED_HOSTS = [h.strip() for h in _allowed if h.strip()]
 
-# ==============================================================================
-# APPS & MIDDLEWARE
-# ==============================================================================
+# 2. APPS & MIDDLEWARE
 INSTALLED_APPS = [
-    'daphne',  # Must be before django.contrib.staticfiles
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # Third-party
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'django_filters',
-    'channels',
-    'django_extensions',
-
-    # Local apps
     'apps.users.apps.UsersConfig',
-    'apps.tasks.apps.TasksConfig',
-    'apps.notifications.apps.NotificationsConfig',
-    'apps.uploads.apps.UploadsConfig',
+    'apps.tasks.apps.TasksConfig', # Make sure this app exists!
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # MUST BE FIRST
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -82,114 +62,34 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# ==============================================================================
-# DATABASE & AUTHENTICATION
-# ==============================================================================
+# 3. DATABASE & AUTH
 DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL', default='sqlite:///db.sqlite3')
-    )
+    'default': dj_database_url.config(default=config('DATABASE_URL', default='sqlite:///db.sqlite3'))
 }
-
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
 AUTH_USER_MODEL = 'users.CustomUser'
 
-# ==============================================================================
-# REST FRAMEWORK & JWT
-# ==============================================================================
+# 4. REST FRAMEWORK & JWT
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',),
 }
-
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=config('JWT_EXPIRATION_HOURS', default=24, cast=int)),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=config('JWT_REFRESH_EXPIRATION_DAYS', default=7, cast=int)),
-    'ALGORITHM': config('JWT_ALGORITHM', default='HS256'),
-    'SIGNING_KEY': config('JWT_SECRET_KEY', default=SECRET_KEY),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'SIGNING_KEY': SECRET_KEY,
 }
 
-# ==============================================================================
-# STATIC & MEDIA FILES (Safe to use os and BASE_DIR here)
-# ==============================================================================
+# 5. STATIC FILES 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# ==============================================================================
-# CORS & CSRF CONFIGURATION
-# ==============================================================================
-CORS_ALLOWED_ORIGINS = [
-    "https://infieldmanegmentsystem.vercel.app",
-]
-
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.vercel\.app$",
-]
-
+# 6. CORS & CSRF
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.vercel\.app$"]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True # Set to False once production is stable
 
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
-
-CORS_ALLOW_METHODS = [
-    'DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT',
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://infieldmanegmentsystem.vercel.app",
-    "https://*.vercel.app",
-]
-
-# ==============================================================================
-# EXTRA CONFIGURATIONS (Celery, Channels, etc.)
-# ==============================================================================
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    }
-}
-
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
-TESSERACT_CMD = config('TESSERACT_CMD', default='/usr/bin/tesseract')
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
-}

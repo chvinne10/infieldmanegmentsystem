@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// 🚀 Guaranteed Base URL matching your Render backend
-const API_BASE_URL = "https://gd-ai-h8zg.onrender.com";
+// Fallback safely to your specific Render URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://gd-ai-h8zg.onrender.com";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -10,7 +10,6 @@ const apiClient = axios.create({
   },
 });
 
-// Attach the access token to every request automatically
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("access");
   if (token) {
@@ -19,15 +18,12 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Automatically handle expired tokens
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
       try {
         const refresh = localStorage.getItem("refresh");
         if (!refresh) {
@@ -35,15 +31,9 @@ apiClient.interceptors.response.use(
           window.location.href = "/login";
           return Promise.reject(error);
         }
-
-        const res = await axios.post(
-          `${API_BASE_URL}/api/token/refresh/`,
-          { refresh }
-        );
-
+        const res = await axios.post(`${API_BASE_URL}/api/token/refresh/`, { refresh });
         localStorage.setItem("access", res.data.access);
         originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
-
         return apiClient(originalRequest);
       } catch (err) {
         localStorage.clear();
@@ -51,7 +41,6 @@ apiClient.interceptors.response.use(
         return Promise.reject(err);
       }
     }
-
     return Promise.reject(error);
   }
 );
